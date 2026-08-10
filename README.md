@@ -1,56 +1,138 @@
-# local-mcp-server
+# winscout-ai
 
-## Overview
-This repository contains the `local-mcp-server`, a project designed to provide a local server environment for managing MCP (Model-View-Presenter) architecture applications.
+A LangChain / LangGraph **ReAct agent** that checks a Windows machine for
+system anomalies and gives you a plain-English health summary.
 
-## Installation
-To set up the project locally, follow these steps:
+It runs on WSL and talks to Windows entirely through PowerShell interop
+(`powershell.exe` is reachable from the Linux side via `/mnt/c/...`) -- no
+agent, service, or extra software needs to run on the Windows side.
+
+## What it checks
+
+The agent has 7 tools and decides for itself which ones to call based on
+your question:
+
+| Tool | What it does |
+|---|---|
+| `get_windows_event_log` | Recent entries from the System / Application / Security event logs, optionally filtered by severity |
+| `get_windows_resource_usage` | CPU load, memory usage, uptime |
+| `get_windows_disk_usage` | Free/used space per drive letter |
+| `get_windows_top_processes` | Top processes by CPU time or working-set memory |
+| `get_windows_stopped_services` | Auto-start services that should be running but aren't |
+| `get_windows_defender_status` | Windows Defender / real-time protection status |
+| `get_windows_outgoing_connections` | Established outbound TCP connections, grouped by process + remote address/port with a connection count |
+
+The agent is instructed to base its summary only on data the tools actually
+return (never invented event IDs, process names, or numbers), and to flag
+anomalies like high CPU/memory, low disk space, stopped services, disabled
+Defender, or a process opening an unusually large number of connections to
+one destination.
+
+## Requirements
+
+- WSL with `powershell.exe` reachable on `PATH` (default on Windows + WSL)
+- [uv](https://docs.astral.sh/uv/) for dependency management
+- [Ollama](https://ollama.com/) running locally with a tool-calling-capable
+  model pulled (default `qwen2.5`)
+
+## Setup
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/kumar-albert/local-mcp-server.git
+    git clone https://github.com/kumar-albert/winscout-ai.git
+    cd winscout-ai
     ```
-2. Navigate to the project directory:
+2. Install dependencies:
     ```bash
-    cd local-mcp-server
+    make install
     ```
-3. Install the necessary dependencies:
+3. Copy the env template and adjust if needed:
     ```bash
-    uv sync
+    cp .env.example .env
+    ```
+4. Pull the model:
+    ```bash
+    ollama pull qwen2.5
     ```
 
 ## Usage
-To start the local server, run:
+
 ```bash
-make start-mcp-server
-make start-agent
+make run
 ```
 
-## Contributing
-Contributions are welcome! Please open an issue or submit a pull request for any enhancements or bug fixes.
+This asks the agent the question in `DEFAULT_AGENT_QUESTION` (see
+`.env.example`) and prints its summary. To ask something more specific,
+use `run_agent()` directly:
 
-## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```python
+from src.agent import run_agent
 
-## Contact
-For any inquiries, please reach out to the repository owner, kumar-albert.
+print(run_agent("Is anything wrong with my disk space or Defender status?"))
+```
 
+## Configuration
+
+All tunables live in `.env` (see `.env.example` for defaults), loaded via
+`src/config.py`:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `OLLAMA_MODEL` | `qwen2.5` | Model served by local Ollama |
+| `OLLAMA_TEMPERATURE` | `0` | Sampling temperature |
+| `OLLAMA_NUM_CTX` | `8192` | Context window given to the model |
+| `POWERSHELL_TIMEOUT_SECONDS` | `30` | Timeout per PowerShell call |
+| `DEFAULT_EVENT_LOG_MAX` | `20` | Default max events per log query |
+| `DEFAULT_TOP_PROCESSES` | `10` | Default process count for the top-processes tool |
+| `DEFAULT_OUTGOING_CONNECTIONS_TOP_N` | `15` | Default group count for the connections tool |
+| `DEFAULT_AGENT_QUESTION` | see `.env.example` | Question `make run` asks by default |
+| `LOG_LEVEL` | `INFO` | Logging verbosity (see below) |
+
+## Logging
+
+Every layer logs through `src/logger.py`. At the default `INFO` level you
+get agent lifecycle events (run start/finish, timing) and warnings for real
+findings (stopped services, Defender disabled, PowerShell failures) --
+nothing about routine tool tracing. Set `LOG_LEVEL=DEBUG` in `.env` to also
+see every tool call's arguments, the PowerShell command it ran, timing, and
+result size.
+
+## Project layout
+
+```
+main.py                    # entry point, calls run_agent()
+src/
+  agent.py                 # builds the ChatOllama LLM + create_react_agent, system prompt
+  tools.py                 # LangChain @tool wrappers (agent-facing surface)
+  windows_system.py        # resource/disk/process/service/Defender/connections logic
+  windows_event_log.py     # event log fetching logic
+  powershell.py            # shared subprocess + .NET date parsing helpers
+  config.py                # .env-backed constants
+  logger.py                # logging setup
+```
 
 ## Architecture
 
 ```mermaid
 graph LR
-    A[AI Agent]
+    A[ReAct Agent - LangGraph]
+    B[ChatOllama]
+    C[Windows tools - src/tools.py]
+    D[Domain logic - windows_system.py / windows_event_log.py]
+    E[PowerShell: Get-WinEvent, Get-CimInstance, Get-Process, Get-Service, Get-MpComputerStatus, Get-NetTCPConnection]
 
-    B[MCP Client]
-    C[AWS Client]
-
-    D[MCP Server]
-    E["LLM"]
-    F[Tools / Resources]
-
-    A <--> B & C
-    B -->|Calls external tools| D --> F
-    C <--> |think based on promt and tell which tool needs to be called| E
-
+    A <--> B
+    A --> C --> D --> E
 ```
+
+## Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request for any enhancements or bug fixes.
+
+## License
+
+MIT.
+
+## Contact
+
+For any inquiries, please reach out to the repository owner, kumar-albert.

@@ -14,8 +14,5 @@ pre-requisites:
 install:
 	uv sync
 
-start-mcp-server:
-	python3 src/mcp_server.py
-
-start-agent:
-	python3 main.py
+run:
+	uv run python3 main.py
