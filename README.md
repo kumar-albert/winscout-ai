@@ -3,9 +3,10 @@
 A LangChain / LangGraph **ReAct agent** that checks a Windows machine for
 system anomalies and gives you a plain-English health summary.
 
-It runs on WSL and talks to Windows entirely through PowerShell interop
-(`powershell.exe` is reachable from the Linux side via `/mnt/c/...`) -- no
-agent, service, or extra software needs to run on the Windows side.
+It talks to Windows entirely through PowerShell -- no agent, service, or
+extra software needs to run beyond Python, `uv`, and Ollama. Works running
+directly on Windows (tested in `cmd`) as well as from a Linux environment
+with `powershell.exe` reachable on `PATH`.
 
 ## What it checks
 
@@ -30,7 +31,7 @@ one destination.
 
 ## Requirements
 
-- WSL with `powershell.exe` reachable on `PATH` (default on Windows + WSL)
+- `powershell.exe` reachable on `PATH`
 - [uv](https://docs.astral.sh/uv/) for dependency management
 - [Ollama](https://ollama.com/) running locally with a tool-calling-capable
   model pulled (default `qwen2.5`)
@@ -46,6 +47,10 @@ one destination.
     ```bash
     make install
     ```
+    On Windows (`cmd`/PowerShell, no `make` required):
+    ```bat
+    make.bat install
+    ```
 3. Copy the env template and adjust if needed:
     ```bash
     cp .env.example .env
@@ -59,6 +64,11 @@ one destination.
 
 ```bash
 make run
+```
+
+On Windows:
+```bat
+make.bat run
 ```
 
 This asks the agent the question in `DEFAULT_AGENT_QUESTION` (see
@@ -101,6 +111,8 @@ result size.
 
 ```
 main.py                    # entry point, calls run_agent()
+makefile                    # make targets (install, run, clean, pre-requisites)
+make.bat                    # same targets, for native Windows cmd/PowerShell
 src/
   agent.py                 # builds the ChatOllama LLM + create_react_agent, system prompt
   tools.py                 # LangChain @tool wrappers (agent-facing surface)
