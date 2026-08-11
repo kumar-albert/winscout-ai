@@ -6,6 +6,7 @@ if "%1"=="help" goto help
 if "%1"=="pre-requisites" goto prerequisites
 if "%1"=="install" goto install
 if "%1"=="run" goto run
+if "%1"=="chat" goto chat
 if "%1"=="clean" goto clean
 
 echo Unknown target: %1
@@ -14,7 +15,8 @@ goto help
 :help
 echo Available commands:
 echo   make.bat install         - Install dependencies
-echo   make.bat run             - Run the application
+echo   make.bat run             - Run one-shot health check
+echo   make.bat chat            - Interactive chat with the agent
 echo   make.bat clean           - Remove __pycache__ folders
 echo   make.bat pre-requisites  - Install uv
 goto end
@@ -29,6 +31,10 @@ goto end
 
 :run
 uv run python main.py
+goto end
+
+:chat
+uv run python main.py --chat
 goto end
 
 :clean

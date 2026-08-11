@@ -1,4 +1,9 @@
-from src.agent import run_agent
+import sys
+
+from src.agent import chat, run_agent
 
 if __name__ == "__main__":
-    print(run_agent())
+    if "--chat" in sys.argv:
+        chat()
+    else:
+        print(run_agent())

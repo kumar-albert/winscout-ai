@@ -73,3 +73,36 @@ def run_agent(question: str = DEFAULT_AGENT_QUESTION) -> str:
         tool_calls,
     )
     return answer
+
+
+def chat():
+    """Interactive REPL: keeps conversation history across turns until the
+    user types exit/quit/q."""
+    agent = build_agent()
+    messages = []
+
+    print("winscout-ai interactive chat. Type 'exit' or 'quit' to leave.")
+    while True:
+        try:
+            question = input("\nyou> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+
+        if not question:
+            continue
+        if question.lower() in {"exit", "quit", "q"}:
+            break
+
+        logger.info("Chat turn started. Question: %s", question)
+        started_at = time.monotonic()
+
+        messages.append({"role": "user", "content": question})
+        result = agent.invoke({"messages": messages})
+        messages = result["messages"]
+        answer = messages[-1].content
+
+        elapsed_s = round(time.monotonic() - started_at, 1)
+        logger.info("Chat turn finished in %.1fs", elapsed_s)
+
+        print(f"\nagent> {answer}")

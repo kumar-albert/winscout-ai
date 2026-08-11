@@ -62,18 +62,23 @@ one destination.
 
 ## Usage
 
+**One-shot health check** -- asks the agent the question in
+`DEFAULT_AGENT_QUESTION` (see `.env.example`) and prints its summary:
+
 ```bash
-make run
+make run          # or, on Windows: make.bat run
 ```
 
-On Windows:
-```bat
-make.bat run
+**Interactive chat** -- a REPL that keeps conversation history across turns,
+so follow-up questions ("is that high?") work without repeating context.
+Type `exit`, `quit`, or `q` to leave:
+
+```bash
+make chat          # or, on Windows: make.bat chat
 ```
 
-This asks the agent the question in `DEFAULT_AGENT_QUESTION` (see
-`.env.example`) and prints its summary. To ask something more specific,
-use `run_agent()` directly:
+To ask a single specific question programmatically, use `run_agent()`
+directly:
 
 ```python
 from src.agent import run_agent
